@@ -23,12 +23,14 @@ interface AnalysisResultProps {
   projection: ProjectionResult;
   inspiration: InspirationResult | null;
   aiAnalysis: AIAnalysisResult | null;
+  aiError?: boolean;
 }
 
 export function AnalysisResult({
   projection,
   inspiration,
   aiAnalysis,
+  aiError,
 }: AnalysisResultProps) {
   return (
     <div className="space-y-6 mt-8">
@@ -158,6 +160,18 @@ export function AnalysisResult({
             </div>
             <p className="text-sm italic font-medium">
               {aiAnalysis.motivation}
+            </p>
+          </div>
+        </div>
+      ) : aiError ? (
+        <div className="p-8 text-center rounded-2xl border border-red-500/20 bg-red-500/5">
+          <div className="flex flex-col items-center gap-3">
+            <Info className="w-8 h-8 text-red-400" />
+            <p className="text-sm font-medium text-red-400">
+              AI Analysis (Gemini) is currently unavailable due to high demand.
+            </p>
+            <p className="text-[10px] text-red-500/60 uppercase tracking-widest">
+              Please try again in a few minutes
             </p>
           </div>
         </div>

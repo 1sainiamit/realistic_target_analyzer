@@ -42,3 +42,12 @@ export interface InspirationResult {
   difficulty: "Moderate" | "Hard" | "Extreme";
   warning: string;
 }
+
+export interface InspirationProfile {
+  name: string;
+  height: number; // cm
+  stageWeight: number; // kg
+  bodyFat: number; // %
+  trainingYears: number;
+  level: "elite" | "advanced" | "athletic";
+}

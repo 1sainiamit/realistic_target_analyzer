@@ -1,5 +1,6 @@
-import { FitnessInput, ProjectionResult, InspirationResult } from "@/app/types/fitness";
+import { FitnessInput, ProjectionResult, InspirationResult, InspirationProfile } from "@/app/types/fitness";
 import { inspirations } from "./inspiration-data";
+import { fetchInspirationProfile } from "./gemini";
 
 const activityMultipliers = {
   sedentary: 1.2,
@@ -108,18 +109,22 @@ export function projectionEngine(data: FitnessInput): ProjectionResult {
 
 
 
-export function inspirationEngine(
+export async function inspirationEngine(
   data: FitnessInput,
-): InspirationResult | null {
+): Promise<InspirationResult | null> {
   if (!data.inspiration) return null;
 
   const key = data.inspiration.toLowerCase().trim();
   console.log(`Inspiration lookup: "${data.inspiration}" -> key: "${key}"`);
-  const profile = inspirations[key];
+  let profile: InspirationProfile | null | undefined = inspirations[key];
 
   if (!profile) {
-    console.log(`Inspiration profile not found for key: "${key}"`);
-    console.log("Available keys:", Object.keys(inspirations));
+    console.log(`Inspiration profile not found locally for key: "${key}". Fetching from Gemini...`);
+    profile = await fetchInspirationProfile(data.inspiration as string);
+  }
+
+  if (!profile) {
+    console.log(`Inspiration profile not found even with Gemini for: "${data.inspiration}"`);
     return null;
   }
 
@@ -127,13 +132,27 @@ export function inspirationEngine(
 
   // Estimate muscle gain potential per year
   let yearlyGain = 0;
-
   if (data.experience === "beginner") yearlyGain = 8;
   if (data.experience === "intermediate") yearlyGain = 4;
   if (data.experience === "advanced") yearlyGain = 2;
 
-  const estimatedYearsRequired =
-    weightDifference > 0 ? weightDifference / yearlyGain : 0;
+  const muscleGainYears = weightDifference > 0 ? weightDifference / yearlyGain : 0;
+
+  // Maturity Factor: Even if weight is reached, density and conditioning take time.
+  const experienceMultiplier: Record<string, number> = {
+    beginner: 1.0,
+    intermediate: 0.7,
+    advanced: 0.4
+  };
+
+  const userExpMult = experienceMultiplier[data.experience] || 1.0;
+  
+  // Base maturity years (roughly 60% of what the pro took, adjusted by user experience)
+  // This ensures that reaching an 'advanced' physique still takes a few years for a beginner
+  // even if they already have the weight.
+  const maturityYears = profile.trainingYears * 0.6 * userExpMult;
+
+  const estimatedYearsRequired = Math.max(muscleGainYears, maturityYears);
 
   let difficulty: "Moderate" | "Hard" | "Extreme" = "Moderate";
   let warning = "";

@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { FitnessInput, ProjectionResult, AIAnalysisResult, InspirationResult } from "@/app/types/fitness";
+import { FitnessInput, ProjectionResult, AIAnalysisResult, InspirationResult, InspirationProfile } from "@/app/types/fitness";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -94,4 +94,69 @@ Return STRICTLY in JSON format:
         console.error("Failed to parse Gemini JSON:", text);
         throw new Error("AI returned invalid JSON format");
     }
+}
+
+export async function fetchInspirationProfile(name: string): Promise<InspirationProfile | null> {
+    const modelsToTry = [
+        "gemini-2.0-flash",
+        "gemini-flash-latest",
+        "gemini-pro-latest"
+    ];
+
+    const prompt = `
+You are a fitness data expert. Provide realistic physique statistics for the following person: "${name}".
+If this is a famous person, provide their known or highly estimated peak physique stats.
+If this is not a specific person, provide realistic stats for a "typical" physique of that type.
+
+Return ONLY a JSON object with the following structure:
+{
+  "name": "Full Name",
+  "height": number (in cm),
+  "stageWeight": number (in kg at low body fat),
+  "bodyFat": number (percentage),
+  "trainingYears": number (years of training to reach this look),
+  "level": "elite" | "advanced" | "athletic"
+}
+
+Rules for 'level':
+- "elite": IFBB Pros, World Class Athletes, Top Tier Bodybuilders (e.g. Cbum, Arnold).
+- "advanced": Very high level fitness influencers, actors in peak movie roles (e.g. David Laid, Hemsworth).
+- "athletic": Standard fit physique, sports-ready.
+
+Example:
+{
+  "name": "Chris Bumstead",
+  "height": 185,
+  "stageWeight": 110,
+  "bodyFat": 6,
+  "trainingYears": 10,
+  "level": "elite"
+}
+`;
+
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error("Missing GEMINI_API_KEY");
+    }
+
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`Attempting to fetch inspiration profile with model: ${modelName}`);
+            const model = genAI.getGenerativeModel({
+                model: modelName,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                }
+            });
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text();
+            if (text) {
+                return JSON.parse(text) as InspirationProfile;
+            }
+        } catch (error: any) {
+            console.error(`Gemini model ${modelName} failed for profile look up:`, error.message);
+        }
+    }
+
+    return null;
 }

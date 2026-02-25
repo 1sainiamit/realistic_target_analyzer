@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { AnalysisResult } from "@/components/AnalysisResult";
 import { RefreshCcw } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -30,6 +31,7 @@ export default function Home() {
     projection: ProjectionResult;
     inspiration: InspirationResult | null;
     aiAnalysis: AIAnalysisResult | null;
+    aiError?: boolean;
   } | null>(null);
   const [showForm, setShowForm] = useState(true);
 
@@ -56,6 +58,7 @@ export default function Home() {
   async function onSubmit(data: FitnessInput) {
     setLoading(true);
     setAnalysisData(null);
+    const toastId = toast.loading("Analyzing your physique data...");
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -63,9 +66,17 @@ export default function Home() {
         body: JSON.stringify(data),
       });
 
+      if (!res.ok) throw new Error("API call failed");
+
       const result = await res.json();
       setAnalysisData(result);
       setShowForm(false);
+
+      if (result.aiError) {
+        toast.warning("Metabolic data calculated, but AI depth analysis failed.", { id: toastId });
+      } else {
+        toast.success("Analysis complete!", { id: toastId });
+      }
 
       // Scroll to results after a short delay for animation
       setTimeout(() => {
@@ -75,6 +86,7 @@ export default function Home() {
       }, 100);
     } catch (error) {
       console.error("Submission failed:", error);
+      toast.error("Failed to analyze data. Please try again.", { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -82,13 +94,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen font-sans">
-      <div className="max-w-4xl mx-auto py-6 px-4">
+      <div className="max-w-4xl mx-auto py-5 px-4">
         <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium mb-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium">
             <Activity className="w-3 h-3" />
             AI-POWERED PROJECTION ENGINE
           </div>
-          <h1 className="text-2xl md:text-3xl text-green-400 font-extrabold tracking-tight bg-clip-text bg-linear-to-b mb-2">
+          <h1 className="text-2xl md:text-3xl text-green-400 font-extrabold tracking-tight bg-clip-text bg-linear-to-b">
             Realistic Target <span>Analyzer</span>
           </h1>
         </div>
@@ -320,6 +332,7 @@ export default function Home() {
                 projection={analysisData.projection}
                 inspiration={analysisData.inspiration}
                 aiAnalysis={analysisData.aiAnalysis}
+                aiError={analysisData.aiError}
               />
             )}
           </div>

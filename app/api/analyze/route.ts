@@ -17,19 +17,22 @@ export async function POST(req: Request) {
     }
 
     const projection = projectionEngine(parsed.data);
-    const inspiration = inspirationEngine(parsed.data);
+    const inspiration = await inspirationEngine(parsed.data);
 
     let aiAnalysis = null;
+    let aiError = false;
     try {
       aiAnalysis = await generateGeminiAnalysis(parsed.data, projection, inspiration);
-    } catch (aiError: any) {
-      console.error("AI Analysis failed:", aiError.message);
+    } catch (aiErrorMsg: any) {
+      console.error("AI Analysis failed:", aiErrorMsg.message);
+      aiError = true;
     }
 
     return NextResponse.json({
       projection,
       inspiration,
-      aiAnalysis
+      aiAnalysis,
+      aiError
     });
 
   } catch (error: any) {
